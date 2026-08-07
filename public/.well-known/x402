@@ -1,0 +1,241 @@
+{
+  "x402Version": 1,
+  "name": "x402-news-wire",
+  "description": "Global news query service over GDELT — article sets, timelines, and delta pulses, per query",
+  "homepage": "https://nirholas.github.io/x402-news-wire/",
+  "repository": "https://github.com/nirholas/x402-news-wire",
+  "contact": "nichxbt@gmail.com",
+  "skill": "https://github.com/nirholas/x402-news-wire/blob/main/skill.md",
+  "openapi": "https://github.com/nirholas/x402-news-wire/blob/main/openapi.json",
+  "payment": {
+    "note": "Pay in USDC on Base or Solana — your client picks the rail.",
+    "facilitator": "https://x402.org/facilitator",
+    "rails": [
+      {
+        "rail": "evm",
+        "network": "base-sepolia",
+        "asset": "USDC",
+        "payTo": "0x40252CFDF8B20Ed757D61ff157719F33Ec332402",
+        "decimals": 6
+      },
+      {
+        "rail": "solana",
+        "network": "solana",
+        "asset": "USDC",
+        "payTo": "WwwuGbqHrwF5RG89KhUbmRWEvjnRH9k5kVM5p7T3WwW",
+        "decimals": 6
+      }
+    ]
+  },
+  "resources": [
+    {
+      "resource": "GET /query",
+      "description": "Search worldwide news coverage and get the matching articles plus a volume timeline",
+      "price": "$0.003",
+      "network": "base-sepolia",
+      "networks": [
+        "base-sepolia",
+        "solana"
+      ],
+      "asset": "USDC",
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "base-sepolia",
+          "asset": "USDC",
+          "payTo": "0x40252CFDF8B20Ed757D61ff157719F33Ec332402",
+          "maxAmountRequired": "3000",
+          "mimeType": "application/json"
+        },
+        {
+          "scheme": "exact",
+          "network": "solana",
+          "asset": "USDC",
+          "payTo": "WwwuGbqHrwF5RG89KhUbmRWEvjnRH9k5kVM5p7T3WwW",
+          "maxAmountRequired": "3000",
+          "mimeType": "application/json"
+        }
+      ],
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "query",
+          "effectiveQuery",
+          "timespan",
+          "count",
+          "articles",
+          "source",
+          "retrievedAt"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "What you asked for."
+          },
+          "effectiveQuery": {
+            "type": "string",
+            "description": "What was actually sent to GDELT."
+          },
+          "timespan": {
+            "type": "string"
+          },
+          "count": {
+            "type": "integer",
+            "description": "Equals `articles.length`."
+          },
+          "articles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "title",
+                "url",
+                "domain",
+                "seenDate"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri"
+                },
+                "domain": {
+                  "type": "string"
+                },
+                "language": {
+                  "type": "string"
+                },
+                "sourceCountry": {
+                  "type": "string"
+                },
+                "seenDate": {
+                  "type": "string",
+                  "description": "When GDELT first indexed the article, `YYYYMMDDTHHMMSSZ`."
+                },
+                "socialImage": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "uri"
+                }
+              }
+            }
+          },
+          "volumeTimeline": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "Coverage volume over the timespan, or `null` when the timeline call failed.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "timelineStatus": {
+            "type": "string",
+            "description": "`ok`, `skipped (timeline=false)`, or `unavailable: <reason>`."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "gdelt-doc-2.0"
+            ]
+          },
+          "retrievedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    {
+      "resource": "GET /pulse",
+      "description": "Only the articles indexed since your cursor, plus a fresh cursor",
+      "price": "$0.002",
+      "network": "base-sepolia",
+      "networks": [
+        "base-sepolia",
+        "solana"
+      ],
+      "asset": "USDC",
+      "accepts": [
+        {
+          "scheme": "exact",
+          "network": "base-sepolia",
+          "asset": "USDC",
+          "payTo": "0x40252CFDF8B20Ed757D61ff157719F33Ec332402",
+          "maxAmountRequired": "2000",
+          "mimeType": "application/json"
+        },
+        {
+          "scheme": "exact",
+          "network": "solana",
+          "asset": "USDC",
+          "payTo": "WwwuGbqHrwF5RG89KhUbmRWEvjnRH9k5kVM5p7T3WwW",
+          "maxAmountRequired": "2000",
+          "mimeType": "application/json"
+        }
+      ],
+      "outputSchema": {
+        "type": "object",
+        "required": [
+          "query",
+          "cursor",
+          "nextCursor",
+          "newArticleCount",
+          "articles",
+          "source",
+          "retrievedAt"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "cursor": {
+            "type": "string",
+            "description": "The cursor you supplied, normalized to GDELT format."
+          },
+          "nextCursor": {
+            "type": "string",
+            "description": "Pass this as `cursor` on your next poll."
+          },
+          "newArticleCount": {
+            "type": "integer"
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when `maxRecords` was hit — poll again with the same cursor."
+          },
+          "articles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": true
+            }
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "gdelt-doc-2.0"
+            ]
+          },
+          "retrievedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    }
+  ]
+}

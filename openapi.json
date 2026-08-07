@@ -1,0 +1,677 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "x402-news-wire",
+    "version": "0.1.0",
+    "description": "Global news query service over GDELT — article sets, timelines, and delta pulses, per query\n\nEvery paid route returns the purchased artifact in the 200 response body. Pay in USDC on Base or Solana — your client picks the rail.",
+    "license": {
+      "name": "Apache-2.0",
+      "identifier": "Apache-2.0"
+    },
+    "contact": {
+      "name": "nirholas",
+      "email": "nichxbt@gmail.com",
+      "url": "https://github.com/nirholas/x402-news-wire"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4022",
+      "description": "Local development"
+    },
+    {
+      "url": "{baseUrl}",
+      "description": "Deployed instance",
+      "variables": {
+        "baseUrl": {
+          "default": "http://localhost:4022"
+        }
+      }
+    }
+  ],
+  "externalDocs": {
+    "description": "Docs site",
+    "url": "https://nirholas.github.io/x402-news-wire/"
+  },
+  "tags": [
+    {
+      "name": "paid",
+      "description": "x402-paid routes. Artifact returned in the 200 body."
+    },
+    {
+      "name": "free",
+      "description": "Unpaid metadata routes."
+    }
+  ],
+  "paths": {
+    "/query": {
+      "get": {
+        "operationId": "query",
+        "summary": "Search worldwide news coverage and get the matching articles plus a volume timeline ($0.003)",
+        "description": "Search worldwide news coverage and get the matching articles plus a volume timeline\n\nPaid route — $0.003 in USDC. Pay on Base (EVM) or Solana; the 402 challenge lists both rails.",
+        "tags": [
+          "paid"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search terms. Multi-word free text is quoted automatically; GDELT operators (`AND`, `OR`, `\"…\"`, `domain:`, `tone<`) are passed through untouched.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "semiconductor export controls"
+          },
+          {
+            "name": "timespan",
+            "in": "query",
+            "required": false,
+            "description": "GDELT timespan looking back from now — `15min`, `1h`, `1d`, `3d`, `1w`, `2months`. Default `3d`.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "3d"
+          },
+          {
+            "name": "maxRecords",
+            "in": "query",
+            "required": false,
+            "description": "Articles to return, 1–75. Default 25.",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 25
+          },
+          {
+            "name": "sourceLang",
+            "in": "query",
+            "required": false,
+            "description": "Restrict to a source language, e.g. `english`, `spanish`, `japanese`.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "english"
+          },
+          {
+            "name": "sourceCountry",
+            "in": "query",
+            "required": false,
+            "description": "Restrict to a publishing country, e.g. `japan`, `germany`, `unitedstates`.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "japan"
+          },
+          {
+            "name": "timeline",
+            "in": "query",
+            "required": false,
+            "description": "Set `false` to skip the timeline call. Faster and less likely to hit GDELT's throttle. Default `true`.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            },
+            "example": "true"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching articles (title, URL, domain, language, source country, seen date) and a coverage-volume timeline over the timespan",
+            "headers": {
+              "X-PAYMENT-RESPONSE": {
+                "description": "Base64 JSON settlement receipt.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "query",
+                    "effectiveQuery",
+                    "timespan",
+                    "count",
+                    "articles",
+                    "source",
+                    "retrievedAt"
+                  ],
+                  "properties": {
+                    "query": {
+                      "type": "string",
+                      "description": "What you asked for."
+                    },
+                    "effectiveQuery": {
+                      "type": "string",
+                      "description": "What was actually sent to GDELT."
+                    },
+                    "timespan": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "description": "Equals `articles.length`."
+                    },
+                    "articles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "title",
+                          "url",
+                          "domain",
+                          "seenDate"
+                        ],
+                        "properties": {
+                          "title": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri"
+                          },
+                          "domain": {
+                            "type": "string"
+                          },
+                          "language": {
+                            "type": "string"
+                          },
+                          "sourceCountry": {
+                            "type": "string"
+                          },
+                          "seenDate": {
+                            "type": "string",
+                            "description": "When GDELT first indexed the article, `YYYYMMDDTHHMMSSZ`."
+                          },
+                          "socialImage": {
+                            "type": [
+                              "string",
+                              "null"
+                            ],
+                            "format": "uri"
+                          }
+                        }
+                      }
+                    },
+                    "volumeTimeline": {
+                      "type": [
+                        "array",
+                        "null"
+                      ],
+                      "description": "Coverage volume over the timespan, or `null` when the timeline call failed.",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "date": {
+                            "type": "string"
+                          },
+                          "value": {
+                            "type": "number"
+                          }
+                        }
+                      }
+                    },
+                    "timelineStatus": {
+                      "type": "string",
+                      "description": "`ok`, `skipped (timeline=false)`, or `unavailable: <reason>`."
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "gdelt-doc-2.0"
+                      ]
+                    },
+                    "retrievedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                },
+                "example": {
+                  "query": "semiconductor export controls",
+                  "effectiveQuery": "\"semiconductor export controls\"",
+                  "timespan": "3d",
+                  "count": 3,
+                  "articles": [
+                    {
+                      "title": "Tokyo weighs fresh curbs on chipmaking tool exports",
+                      "url": "https://www.japantimes.co.jp/business/2026/08/07/chip-tool-export-curbs/",
+                      "domain": "japantimes.co.jp",
+                      "language": "English",
+                      "sourceCountry": "Japan",
+                      "seenDate": "20260807T021500Z",
+                      "socialImage": "https://www.japantimes.co.jp/uploads/2026/08/chip-tools.jpg"
+                    },
+                    {
+                      "title": "Chip industry groups warn of supply disruption from new export rules",
+                      "url": "https://www.reuters.com/technology/chip-export-rules-2026-08-06/",
+                      "domain": "reuters.com",
+                      "language": "English",
+                      "sourceCountry": "United Kingdom",
+                      "seenDate": "20260806T184500Z",
+                      "socialImage": null
+                    },
+                    {
+                      "title": "Halbleiter: Neue Exportkontrollen treffen Zulieferer",
+                      "url": "https://www.handelsblatt.com/technik/halbleiter-exportkontrollen/",
+                      "domain": "handelsblatt.com",
+                      "language": "German",
+                      "sourceCountry": "Germany",
+                      "seenDate": "20260806T093000Z",
+                      "socialImage": null
+                    }
+                  ],
+                  "volumeTimeline": [
+                    {
+                      "date": "20260804T000000Z",
+                      "value": 0.0041
+                    },
+                    {
+                      "date": "20260805T000000Z",
+                      "value": 0.0067
+                    },
+                    {
+                      "date": "20260806T000000Z",
+                      "value": 0.0192
+                    },
+                    {
+                      "date": "20260807T000000Z",
+                      "value": 0.0155
+                    }
+                  ],
+                  "timelineStatus": "ok",
+                  "source": "gdelt-doc-2.0",
+                  "retrievedAt": "2026-08-07T02:44:19.882Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required (or payment rejected). The body lists both accepted rails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRequired"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream data source failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pulse": {
+      "get": {
+        "operationId": "pulse",
+        "summary": "Only the articles indexed since your cursor, plus a fresh cursor ($0.002)",
+        "description": "Only the articles indexed since your cursor, plus a fresh cursor\n\nPaid route — $0.002 in USDC. Pay on Base (EVM) or Solana; the 402 challenge lists both rails.",
+        "tags": [
+          "paid"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "description": "Search terms, same syntax as `/query`.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "semiconductor export controls"
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": true,
+            "description": "Where to resume from: GDELT's `YYYYMMDDHHMMSS` or any ISO-8601 timestamp. Use the `nextCursor` from your previous pulse.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "20260806T000000Z"
+          },
+          {
+            "name": "maxRecords",
+            "in": "query",
+            "required": false,
+            "description": "Articles to return, 1–75. Default 50.",
+            "schema": {
+              "type": "integer"
+            },
+            "example": 50
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "New articles since the caller's cursor, a `nextCursor` for the following poll, and a `truncated` flag",
+            "headers": {
+              "X-PAYMENT-RESPONSE": {
+                "description": "Base64 JSON settlement receipt.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "query",
+                    "cursor",
+                    "nextCursor",
+                    "newArticleCount",
+                    "articles",
+                    "source",
+                    "retrievedAt"
+                  ],
+                  "properties": {
+                    "query": {
+                      "type": "string"
+                    },
+                    "cursor": {
+                      "type": "string",
+                      "description": "The cursor you supplied, normalized to GDELT format."
+                    },
+                    "nextCursor": {
+                      "type": "string",
+                      "description": "Pass this as `cursor` on your next poll."
+                    },
+                    "newArticleCount": {
+                      "type": "integer"
+                    },
+                    "truncated": {
+                      "type": "boolean",
+                      "description": "True when `maxRecords` was hit — poll again with the same cursor."
+                    },
+                    "articles": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "source": {
+                      "type": "string",
+                      "enum": [
+                        "gdelt-doc-2.0"
+                      ]
+                    },
+                    "retrievedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                },
+                "example": {
+                  "query": "semiconductor export controls",
+                  "cursor": "20260806000000",
+                  "nextCursor": "20260807024319",
+                  "newArticleCount": 2,
+                  "truncated": false,
+                  "articles": [
+                    {
+                      "title": "Tokyo weighs fresh curbs on chipmaking tool exports",
+                      "url": "https://www.japantimes.co.jp/business/2026/08/07/chip-tool-export-curbs/",
+                      "domain": "japantimes.co.jp",
+                      "language": "English",
+                      "sourceCountry": "Japan",
+                      "seenDate": "20260807T021500Z",
+                      "socialImage": "https://www.japantimes.co.jp/uploads/2026/08/chip-tools.jpg"
+                    },
+                    {
+                      "title": "Chip industry groups warn of supply disruption from new export rules",
+                      "url": "https://www.reuters.com/technology/chip-export-rules-2026-08-06/",
+                      "domain": "reuters.com",
+                      "language": "English",
+                      "sourceCountry": "United Kingdom",
+                      "seenDate": "20260806T184500Z",
+                      "socialImage": null
+                    }
+                  ],
+                  "source": "gdelt-doc-2.0",
+                  "retrievedAt": "2026-08-07T02:44:19.882Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid parameters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Payment required (or payment rejected). The body lists both accepted rails.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentRequired"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Upstream data source failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/": {
+      "get": {
+        "operationId": "serviceInfo",
+        "summary": "Service metadata, live prices, and active payment rails (free)",
+        "tags": [
+          "free"
+        ],
+        "responses": {
+          "200": {
+            "description": "Service metadata.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health",
+        "summary": "Liveness probe (free)",
+        "tags": [
+          "free"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "uptime": {
+                      "type": "number"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/x402": {
+      "get": {
+        "operationId": "discoveryManifest",
+        "summary": "x402 discovery manifest (free)",
+        "tags": [
+          "free"
+        ],
+        "responses": {
+          "200": {
+            "description": "Manifest.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Machine-readable error code."
+          },
+          "message": {
+            "type": "string",
+            "description": "Human-readable description."
+          }
+        }
+      },
+      "PaymentRequirements": {
+        "type": "object",
+        "description": "One accepted payment rail, per the x402 specification.",
+        "required": [
+          "scheme",
+          "network",
+          "maxAmountRequired",
+          "resource",
+          "payTo",
+          "asset"
+        ],
+        "properties": {
+          "scheme": {
+            "type": "string",
+            "enum": [
+              "exact"
+            ]
+          },
+          "network": {
+            "type": "string",
+            "enum": [
+              "base-sepolia",
+              "base",
+              "solana",
+              "solana-devnet"
+            ],
+            "description": "EVM or Solana network this rail settles on."
+          },
+          "maxAmountRequired": {
+            "type": "string",
+            "description": "Price in USDC base units (6 decimals)."
+          },
+          "resource": {
+            "type": "string",
+            "format": "uri"
+          },
+          "description": {
+            "type": "string"
+          },
+          "mimeType": {
+            "type": "string"
+          },
+          "payTo": {
+            "type": "string",
+            "description": "Receive address (0x… for EVM, base58 for Solana)."
+          },
+          "maxTimeoutSeconds": {
+            "type": "integer"
+          },
+          "asset": {
+            "type": "string",
+            "description": "USDC contract address or SPL mint."
+          },
+          "outputSchema": {
+            "type": "object"
+          },
+          "extra": {
+            "type": "object",
+            "description": "EVM: EIP-712 domain (`name`, `version`). Solana: `feePayer`, the sponsor that pays the SOL network fee."
+          }
+        }
+      },
+      "PaymentRequired": {
+        "type": "object",
+        "required": [
+          "x402Version",
+          "accepts"
+        ],
+        "properties": {
+          "x402Version": {
+            "type": "integer",
+            "enum": [
+              1
+            ]
+          },
+          "error": {
+            "type": "string"
+          },
+          "hint": {
+            "type": "string"
+          },
+          "accepts": {
+            "type": "array",
+            "description": "Both rails: USDC on Base and USDC on Solana.",
+            "items": {
+              "$ref": "#/components/schemas/PaymentRequirements"
+            }
+          }
+        }
+      }
+    }
+  }
+}
