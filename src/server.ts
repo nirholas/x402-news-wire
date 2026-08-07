@@ -18,6 +18,7 @@ import {
   usingSuiteDefaultPayTo,
   type RoutePrices,
 } from "./payments.js";
+import { ROUTE_SCHEMAS } from "./schemas.js";
 import { GdeltThrottledError, minGapMs, pulse, query } from "./service.js";
 
 const require = createRequire(import.meta.url);
@@ -31,27 +32,13 @@ const ROUTES: RoutePrices = {
     price: "$0.003",
     description:
       "Global news search over GDELT. Returns matching articles (title, URL, domain, language, source country, seen date) plus a coverage-volume timeline.",
-    outputSchema: {
-      type: "object",
-      properties: {
-        count: { type: "integer" },
-        articles: { type: "array", items: { type: "object" } },
-        volumeTimeline: { type: ["array", "null"] },
-      },
-    },
+    outputSchema: ROUTE_SCHEMAS["GET /query"],
   },
   "GET /pulse": {
     price: "$0.002",
     description:
       "Delta pulse: only the articles GDELT indexed since your cursor, plus a fresh cursor for the next poll.",
-    outputSchema: {
-      type: "object",
-      properties: {
-        newArticleCount: { type: "integer" },
-        nextCursor: { type: "string" },
-        articles: { type: "array", items: { type: "object" } },
-      },
-    },
+    outputSchema: ROUTE_SCHEMAS["GET /pulse"],
   },
 };
 
@@ -81,11 +68,18 @@ app.get("/openapi.json", (_req, res) => {
   res.type("application/json").sendFile(join(root, "openapi.json"));
 });
 
-// Static site.
-app.use(express.static(publicDir));
+// Static site. `index: false` keeps `/` on the JSON handler below — the landing
+// page is served from there only when the caller actually asked for HTML.
+app.use(express.static(publicDir, { index: false }));
 
-// Free: service info.
-app.get("/", (_req, res) => {
+// Free: service info. Browsers and crawlers (Accept: text/html) get the landing
+// page with the origin's title/description/favicon metadata; agents and curl get
+// the JSON contract.
+app.get("/", (req, res) => {
+  if (req.accepts(["json", "html"]) === "html") {
+    res.sendFile(join(publicDir, "index.html"));
+    return;
+  }
   res.json({
     name: "x402-news-wire",
     description:
