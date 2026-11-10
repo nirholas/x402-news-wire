@@ -1,0 +1,22 @@
+{
+  "name": "x402-news-wire",
+  "owner": {
+    "name": "nirholas"
+  },
+  "description": "Run the x402-news-wire service and query GDELT global news with article sets, coverage timelines and delta pulses paid per query via x402.",
+  "plugins": [
+    {
+      "name": "x402-news-wire",
+      "source": "./plugins/x402-news-wire",
+      "description": "Run the x402-news-wire service and query GDELT global news with article sets, coverage timelines and delta pulses paid per query via x402.",
+      "category": "data",
+      "tags": [
+        "x402",
+        "news",
+        "gdelt",
+        "usdc",
+        "monitoring"
+      ]
+    }
+  ]
+}
